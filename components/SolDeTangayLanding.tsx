@@ -29,8 +29,6 @@ const sections = [
 ];
 
 type MediaSet = {
-  desktopPoster: string;
-  mobilePoster: string;
   desktopVideo?: string;
   desktopVideoWebm?: string;
   mobileVideo?: string;
@@ -46,8 +44,6 @@ const media = {
   experiences: makeMedia("04-signature-experiences", true),
   packages: makeMedia("05-package-ladder", true),
   retreats: {
-    desktopPoster: `${mediaBase}/desktop/06-retreats-corporate.png`,
-    mobilePoster: `${mediaBase}/mobile/06-retreats-corporate.png`,
     mobileVideo: `${mediaBase}/mobile/06-retreats-corporate.mp4`,
     mobileVideoWebm: `${mediaBase}/mobile/06-retreats-corporate.webm`
   },
@@ -115,8 +111,6 @@ const whatsappHref = whatsappNumber
 
 function makeMedia(slug: string, hasDesktopVideo: boolean): MediaSet {
   return {
-    desktopPoster: `${mediaBase}/desktop/${slug}.png`,
-    mobilePoster: `${mediaBase}/mobile/${slug}.png`,
     desktopVideo: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.mp4` : undefined,
     desktopVideoWebm: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.webm` : undefined,
     mobileVideo: `${mediaBase}/mobile/${slug}.mp4`,
@@ -487,6 +481,7 @@ function BackgroundMedia({
   const ref = useRef<HTMLDivElement>(null);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(eager);
   const [isInView, setIsInView] = useState(eager);
+  const hasDesktopVideo = Boolean(mediaSet.desktopVideo);
 
   useEffect(() => {
     const node = ref.current;
@@ -524,40 +519,35 @@ function BackgroundMedia({
 
   return (
     <div ref={ref} className="media-layer" aria-hidden="true">
-      <picture>
-        <source media="(max-width: 760px)" srcSet={mediaSet.mobilePoster} />
-        <img src={mediaSet.desktopPoster} alt="" />
-      </picture>
-
-      {shouldLoadVideo && mediaSet.desktopVideo ? (
+      {shouldLoadVideo ? (
         <video
-          className="section-video video-desktop"
+          className="section-video"
           muted
           loop
           playsInline
+          autoPlay
           preload={eager ? "auto" : "metadata"}
-          poster={mediaSet.desktopPoster}
         >
+          {mediaSet.mobileVideoWebm ? (
+            <source
+              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+              src={mediaSet.mobileVideoWebm}
+              type="video/webm"
+            />
+          ) : null}
+          {mediaSet.mobileVideo ? (
+            <source
+              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+              src={mediaSet.mobileVideo}
+              type="video/mp4"
+            />
+          ) : null}
           {mediaSet.desktopVideoWebm ? (
             <source src={mediaSet.desktopVideoWebm} type="video/webm" />
           ) : null}
-          <source src={mediaSet.desktopVideo} type="video/mp4" />
-        </video>
-      ) : null}
-
-      {eager && shouldLoadVideo && mediaSet.mobileVideo ? (
-        <video
-          className="section-video video-mobile"
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster={mediaSet.mobilePoster}
-        >
-          {mediaSet.mobileVideoWebm ? (
-            <source src={mediaSet.mobileVideoWebm} type="video/webm" />
+          {mediaSet.desktopVideo ? (
+            <source src={mediaSet.desktopVideo} type="video/mp4" />
           ) : null}
-          <source src={mediaSet.mobileVideo} type="video/mp4" />
         </video>
       ) : null}
     </div>

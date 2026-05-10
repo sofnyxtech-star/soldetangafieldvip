@@ -137,8 +137,6 @@ a {
 }
 
 .media-layer,
-.media-layer picture,
-.media-layer img,
 .section-video,
 .section-tint {
   position: absolute;
@@ -150,29 +148,16 @@ a {
   background: var(--olive-950);
 }
 
-.media-layer picture {
-  z-index: 0;
-}
-
-.media-layer img,
 .section-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.media-layer img {
-  filter: saturate(1.03) contrast(1.04);
-}
-
 .section-video {
   z-index: 1;
   opacity: 0.94;
   filter: saturate(1.04) contrast(1.03);
-}
-
-.video-mobile {
-  display: none;
 }
 
 .section-tint {
@@ -1159,14 +1144,6 @@ p {
     display: none;
   }
 
-  .video-desktop {
-    display: none;
-  }
-
-  .video-mobile {
-    display: block;
-  }
-
   .section-inner {
     width: calc(100vw - 32px);
     padding: 94px 0 30px;
@@ -1176,20 +1153,16 @@ p {
     min-height: 100svh;
   }
 
-  .section-video,
-  .media-layer img {
+  .section-video {
     filter: saturate(1.08) contrast(1.03) brightness(0.94);
   }
 
-  .hero-section .section-video,
-  .hero-section .media-layer img {
+  .hero-section .section-video {
     object-position: center 35%;
   }
 
   .packages-section .section-video,
-  .packages-section .media-layer img,
-  .experiences-section .section-video,
-  .experiences-section .media-layer img {
+  .experiences-section .section-video {
     object-position: center top;
   }
 
