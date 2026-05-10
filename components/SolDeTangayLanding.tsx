@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -26,6 +26,26 @@ const sections = [
   { id: "ubicacion", label: "Ubicación" },
   { id: "contacto", label: "Contacto" }
 ];
+
+type MediaSet = {
+  desktopVideo?: string;
+  desktopVideoWebm?: string;
+  mobileVideo?: string;
+  mobileVideoWebm?: string;
+};
+
+const mediaBase = "/sol-de-tangay/images";
+
+const media = {
+  hero: makeMedia("01-hero-private-escape"),
+  escape: makeMedia("02-city-escape-path"),
+  gallery: makeMedia("03-experience-gallery"),
+  experiences: makeMedia("04-signature-experiences"),
+  packages: makeMedia("05-package-ladder"),
+  retreats: makeMedia("06-retreats-corporate", false),
+  location: makeMedia("07-distance-privacy"),
+  close: makeMedia("08-whatsapp-close")
+} satisfies Record<string, MediaSet>;
 
 const nav = [
   { label: "Experiencias", href: "#experiencias" },
@@ -84,6 +104,15 @@ const whatsappDisplay = "+51 973 068 950";
 const whatsappHref = whatsappNumber
   ? `https://wa.me/${whatsappNumber}?text=${whatsappText}`
   : `https://wa.me/?text=${whatsappText}`;
+
+function makeMedia(slug: string, hasDesktopVideo = true): MediaSet {
+  return {
+    desktopVideo: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.mp4` : undefined,
+    desktopVideoWebm: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.webm` : undefined,
+    mobileVideo: `${mediaBase}/mobile/${slug}.mp4`,
+    mobileVideoWebm: `${mediaBase}/mobile/${slug}.webm`
+  };
+}
 
 function useActiveSectionId() {
   const [activeId, setActiveId] = useState(sections[0].id);
@@ -229,8 +258,94 @@ function AutoLoopRail({
   );
 }
 
-function BackgroundMedia() {
-  return <div className="media-layer" data-media-disabled="true" aria-hidden="true" />;
+function BackgroundMedia({
+  mediaSet,
+  sectionId,
+  eager = false
+}: {
+  mediaSet: MediaSet;
+  sectionId: string;
+  eager?: boolean;
+}) {
+  const layerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [shouldRenderVideo, setShouldRenderVideo] = useState(eager);
+  const [isVisible, setIsVisible] = useState(eager);
+  const hasDesktopVideo = Boolean(mediaSet.desktopVideo);
+
+  useEffect(() => {
+    const layer = layerRef.current;
+    const section = layer?.closest(".landing-section");
+
+    if (!section || !("IntersectionObserver" in window)) {
+      setShouldRenderVideo(true);
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const visible = Boolean(entry?.isIntersecting);
+        setShouldRenderVideo(visible);
+        setIsVisible(visible);
+      },
+      {
+        rootMargin: "80px 0px",
+        threshold: 0.12
+      }
+    );
+
+    observer.observe(section);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isVisible) {
+      if (video.paused) video.play().catch(() => {});
+    } else if (!video.paused) {
+      video.pause();
+    }
+  }, [isVisible, shouldRenderVideo]);
+
+  return (
+    <div className="media-layer" ref={layerRef} aria-hidden="true">
+      {shouldRenderVideo ? (
+        <video
+          ref={videoRef}
+          className="section-video"
+          data-section={sectionId}
+          data-active={isVisible ? "true" : "false"}
+          muted
+          loop
+          playsInline
+          preload={eager ? "auto" : "metadata"}
+        >
+          {mediaSet.mobileVideo ? (
+            <source
+              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+              src={mediaSet.mobileVideo}
+              type="video/mp4"
+            />
+          ) : null}
+          {mediaSet.mobileVideoWebm ? (
+            <source
+              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+              src={mediaSet.mobileVideoWebm}
+              type="video/webm"
+            />
+          ) : null}
+          {mediaSet.desktopVideo ? <source src={mediaSet.desktopVideo} type="video/mp4" /> : null}
+          {mediaSet.desktopVideoWebm ? (
+            <source src={mediaSet.desktopVideoWebm} type="video/webm" />
+          ) : null}
+        </video>
+      ) : null}
+    </div>
+  );
 }
 
 function CtaButton({
@@ -328,7 +443,7 @@ export function SolDeTangayLanding() {
       <SectionCounter activeId={activeSectionId} />
 
       <section className="landing-section hero-section" id="inicio">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="inicio" mediaSet={media.hero} eager />
         <div className="section-tint hero-tint" />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
@@ -352,7 +467,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section escape-section" id="escape">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="escape" mediaSet={media.escape} />
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
@@ -370,7 +485,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section gallery-section" id="galeria">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="galeria" mediaSet={media.gallery} />
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
@@ -398,7 +513,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section experiences-section" id="experiencias">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="experiencias" mediaSet={media.experiences} />
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
@@ -425,7 +540,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section packages-section" id="paquetes">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="paquetes" mediaSet={media.packages} />
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
@@ -456,7 +571,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section retreats-section" id="retiros">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="retiros" mediaSet={media.retreats} />
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
@@ -482,7 +597,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section location-section" id="ubicacion">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="ubicacion" mediaSet={media.location} />
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
@@ -507,7 +622,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section close-section" id="contacto">
-        <BackgroundMedia />
+        <BackgroundMedia sectionId="contacto" mediaSet={media.close} />
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
