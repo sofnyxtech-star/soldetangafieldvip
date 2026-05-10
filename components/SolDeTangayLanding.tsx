@@ -147,7 +147,7 @@ function MotionBlock({
 const splitContainerVariants: Variants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.06 }
+    transition: { staggerChildren: 0.04 }
   }
 };
 
@@ -155,7 +155,7 @@ const splitWordVariants: Variants = {
   hidden: { y: "110%" },
   visible: {
     y: "0%",
-    transition: { duration: 0.85, ease: [0.22, 1, 0.36, 1] }
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] }
   }
 };
 
@@ -240,24 +240,6 @@ function SectionCounter() {
   );
 }
 
-function FloatingLeaf() {
-  return (
-    <motion.svg
-      className="floating-leaf floating-leaf--top-left"
-      viewBox="0 0 64 64"
-      width="64"
-      height="64"
-      aria-hidden="true"
-      animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
-      transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <path
-        d="M32 6c-12 6-20 16-18 30 1 9 7 17 18 22 11-5 17-13 18-22 2-14-6-24-18-30zm0 8c8 5 13 12 12 22-1 7-5 13-12 17-7-4-11-10-12-17-1-10 4-17 12-22z"
-        fill="currentColor"
-      />
-    </motion.svg>
-  );
-}
 
 function AutoLoopRail({
   children,
@@ -696,7 +678,6 @@ export function SolDeTangayLanding() {
       <section className="landing-section hero-section" id="inicio">
         <BackgroundMedia mediaSet={media.hero} eager parallax />
         <div className="section-tint hero-tint" />
-        <FloatingLeaf />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
             <SplitText as="h1" text="Tu evento privado, fuera de la ciudad." />
@@ -723,7 +704,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
-            <SplitText as="h2" text="Lejos del bullicio. Cerca de tu casa." />
+            <h2>Lejos del bullicio. Cerca de tu casa.</h2>
             <p>
               La mayoría de campestres te quitan medio día en traslado y al
               llegar te toca compartirlos con desconocidos. Sol De Tangay está
@@ -741,7 +722,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
-            <SplitText as="h2" text="Pedidas. Cumpleaños. Cenas en familia." />
+            <h2>Pedidas. Cumpleaños. Cenas en familia.</h2>
             <p>
               Cada montaje se diseña contigo antes del día. Lo que ves aquí es
               exactamente lo que vas a recibir: sin sorpresas, sin
@@ -769,7 +750,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
-            <SplitText as="h2" text="Momentos privados, creado para ti" />
+            <h2>Momentos privados, creado para ti</h2>
             <p>
               Pedidas, cumpleaños, aniversarios, reuniones familiares,
               almuerzos privados y eventos de empresa. Cada formato se ajusta
@@ -796,7 +777,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
-            <SplitText as="h2" text="Tres formatos. Una sola garantía: el lugar es tuyo." />
+            <h2>Tres formatos. Una sola garantía: el lugar es tuyo.</h2>
             <p>
               Desde una pedida íntima hasta una boda que toma el field
               completo. El precio se ajusta a tu lista y al nivel de servicio.
@@ -827,7 +808,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
-            <SplitText as="h2" text="El field para tus encuentros más privados" />
+            <h2>El field para tus encuentros más privados</h2>
             <p>
               Almuerzos familiares que prefieres en privado, parrillas con
               amigos sin público alrededor, retiros y mañanas tranquilas. Sin
@@ -853,7 +834,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
-            <SplitText as="h2" text="Lejos del ruido. A 30 minutos del centro." />
+            <h2>Lejos del ruido. A 30 minutos del centro.</h2>
             <p>
               Acceso asfaltado, parqueo propio dentro del field, sin cruzar
               pueblo ni esquivar tráfico. Llegas, estacionas y desde ese
@@ -878,7 +859,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
-            <SplitText as="h2" text="Hablemos de tu evento" />
+            <h2>Hablemos de tu evento</h2>
             <p>
               Cuéntanos qué momento estás planeando, fecha tentativa y cuántos
               invitados. En 24 horas tienes una cotización con todo claro:
