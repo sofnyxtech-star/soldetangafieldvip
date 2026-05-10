@@ -479,62 +479,48 @@ function AutoLoopRail({
 
 function BackgroundMedia({
   mediaSet,
-  eager = false,
-  parallax = false
+  eager = false
 }: {
   mediaSet: MediaSet;
   eager?: boolean;
-  parallax?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(eager);
+  const [isInView, setIsInView] = useState(eager);
 
   useEffect(() => {
-    if (eager || shouldLoadVideo) return;
     const node = ref.current;
     if (!node) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setShouldLoadVideo(true);
-          observer.disconnect();
+          setIsInView(true);
+        } else {
+          setIsInView(false);
         }
       },
-      { rootMargin: "260px" }
+      { rootMargin: "200px" }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [eager, shouldLoadVideo]);
+  }, []);
 
   useEffect(() => {
-    if (!parallax) return;
     const node = ref.current;
-    const parent = node?.parentElement;
-    if (!node || !parent) return;
-
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reducedMotion.matches) return;
-
-    let raf = 0;
-    const update = () => {
-      const rect = parent.getBoundingClientRect();
-      const offset = -rect.top * 0.12;
-      node.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
-    };
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(update);
-    };
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      cancelAnimationFrame(raf);
-      node.style.transform = "";
-    };
-  }, [parallax]);
+    if (!node) return;
+    const videos = node.querySelectorAll<HTMLVideoElement>("video");
+    if (videos.length === 0) return;
+    if (isInView) {
+      videos.forEach((v) => {
+        if (v.paused) v.play().catch(() => {});
+      });
+    } else {
+      videos.forEach((v) => {
+        if (!v.paused) v.pause();
+      });
+    }
+  }, [isInView, shouldLoadVideo]);
 
   return (
     <div ref={ref} className="media-layer" aria-hidden="true">
@@ -546,7 +532,6 @@ function BackgroundMedia({
       {shouldLoadVideo && mediaSet.desktopVideo ? (
         <video
           className="section-video video-desktop"
-          autoPlay
           muted
           loop
           playsInline
@@ -563,7 +548,6 @@ function BackgroundMedia({
       {shouldLoadVideo && mediaSet.mobileVideo ? (
         <video
           className="section-video video-mobile"
-          autoPlay
           muted
           loop
           playsInline
@@ -676,7 +660,7 @@ export function SolDeTangayLanding() {
       <SectionCounter />
 
       <section className="landing-section hero-section" id="inicio">
-        <BackgroundMedia mediaSet={media.hero} eager parallax />
+        <BackgroundMedia mediaSet={media.hero} eager />
         <div className="section-tint hero-tint" />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
