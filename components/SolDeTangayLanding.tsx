@@ -89,38 +89,8 @@ function useActiveSectionId() {
   const [activeId, setActiveId] = useState(sections[0].id);
 
   useEffect(() => {
-    let rafId = 0;
-
-    const updateActiveSection = () => {
-      rafId = 0;
-      const centerY = window.innerHeight * 0.5;
-      let nextId = sections[0].id;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      for (const section of sections) {
-        const el = document.getElementById(section.id);
-        if (!el) continue;
-
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= centerY && rect.bottom >= centerY) {
-          nextId = section.id;
-          break;
-        }
-
-        const distance = Math.min(Math.abs(rect.top - centerY), Math.abs(rect.bottom - centerY));
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nextId = section.id;
-        }
-      }
-
-      setActiveId((current) => (current === nextId ? current : nextId));
-    };
-
-    const scheduleUpdate = () => {
-      if (rafId) return;
-      rafId = window.requestAnimationFrame(updateActiveSection);
-    };
+    const compactViewport = window.matchMedia("(max-width: 980px)");
+    let observer: IntersectionObserver | null = null;
 
     const activateHashSection = () => {
       const hashId = window.location.hash.replace("#", "");
@@ -129,17 +99,60 @@ function useActiveSectionId() {
       }
     };
 
-    updateActiveSection();
-    activateHashSection();
-    window.addEventListener("scroll", scheduleUpdate, { passive: true });
-    window.addEventListener("resize", scheduleUpdate);
+    const stopObserver = () => {
+      observer?.disconnect();
+      observer = null;
+    };
+
+    const startObserver = () => {
+      stopObserver();
+      activateHashSection();
+
+      if (compactViewport.matches) return;
+
+      observer = new IntersectionObserver(
+        (entries) => {
+          let nearest: { id: string; distance: number } | null = null;
+          const centerY = window.innerHeight * 0.5;
+
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+
+            const sectionId = entry.target.id;
+            const rect = entry.boundingClientRect;
+            const sectionCenterY = rect.top + rect.height * 0.5;
+            const distance = Math.abs(sectionCenterY - centerY);
+
+            if (!nearest || distance < nearest.distance) {
+              nearest = { id: sectionId, distance };
+            }
+          }
+
+          if (!nearest) return;
+
+          const nextId = nearest.id;
+          setActiveId((current) => (current === nextId ? current : nextId));
+        },
+        {
+          rootMargin: "-38% 0px -38% 0px",
+          threshold: [0, 0.2, 0.6]
+        }
+      );
+
+      for (const section of sections) {
+        const el = document.getElementById(section.id);
+        if (el) observer.observe(el);
+      }
+    };
+
+    startObserver();
     window.addEventListener("hashchange", activateHashSection);
+    compactViewport.addEventListener("change", startObserver);
 
     return () => {
-      window.removeEventListener("scroll", scheduleUpdate);
-      window.removeEventListener("resize", scheduleUpdate);
       window.removeEventListener("hashchange", activateHashSection);
-      if (rafId) window.cancelAnimationFrame(rafId);
+      compactViewport.removeEventListener("change", startObserver);
+      stopObserver();
     };
   }, []);
 
