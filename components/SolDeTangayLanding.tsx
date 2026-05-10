@@ -1,8 +1,9 @@
 "use client";
 
-import { Children, cloneElement, isValidElement, useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState } from "react";
+import { motion, type Variants } from "motion/react";
 import {
+  ArrowLeft,
   ArrowUpRight,
   CalendarDays,
   Check,
@@ -15,6 +16,17 @@ import {
   UsersRound,
   X
 } from "lucide-react";
+
+const sections = [
+  { id: "inicio", label: "Inicio" },
+  { id: "escape", label: "Escape" },
+  { id: "galeria", label: "Galería" },
+  { id: "experiencias", label: "Experiencias" },
+  { id: "paquetes", label: "Paquetes" },
+  { id: "retiros", label: "Retiros" },
+  { id: "ubicacion", label: "Ubicación" },
+  { id: "contacto", label: "Contacto" }
+];
 
 type MediaSet = {
   desktopPoster: string;
@@ -132,14 +144,131 @@ function MotionBlock({
   );
 }
 
+const splitContainerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.06 }
+  }
+};
+
+const splitWordVariants: Variants = {
+  hidden: { y: "110%" },
+  visible: {
+    y: "0%",
+    transition: { duration: 0.85, ease: [0.22, 1, 0.36, 1] }
+  }
+};
+
+function SplitText({
+  text,
+  as = "span",
+  className
+}: {
+  text: string;
+  as?: "h1" | "h2" | "h3" | "span";
+  className?: string;
+}) {
+  const words = text.split(" ");
+  const content = words.map((word, i) => (
+    <Fragment key={`${word}-${i}`}>
+      <span className="split-text">
+        <motion.span className="split-text-word" variants={splitWordVariants}>
+          {word}
+        </motion.span>
+      </span>
+      {i < words.length - 1 ? " " : null}
+    </Fragment>
+  ));
+
+  const sharedProps = {
+    className,
+    initial: "hidden" as const,
+    whileInView: "visible" as const,
+    viewport: { once: true, amount: 0.2 },
+    variants: splitContainerVariants
+  };
+
+  if (as === "h1") return <motion.h1 {...sharedProps}>{content}</motion.h1>;
+  if (as === "h2") return <motion.h2 {...sharedProps}>{content}</motion.h2>;
+  if (as === "h3") return <motion.h3 {...sharedProps}>{content}</motion.h3>;
+  return <motion.span {...sharedProps}>{content}</motion.span>;
+}
+
+function SectionCounter() {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let bestIdx = active;
+        let bestRatio = 0;
+        for (const entry of entries) {
+          if (entry.intersectionRatio > bestRatio) {
+            const idx = sections.findIndex((s) => s.id === entry.target.id);
+            if (idx >= 0) {
+              bestIdx = idx;
+              bestRatio = entry.intersectionRatio;
+            }
+          }
+        }
+        if (bestRatio > 0) setActive(bestIdx);
+      },
+      { threshold: [0.25, 0.5, 0.75] }
+    );
+
+    sections.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [active]);
+
+  return (
+    <aside className="section-counter" aria-hidden="true">
+      <span className="section-counter-num">
+        {String(active + 1).padStart(2, "0")}
+        <span style={{ opacity: 0.5 }}> / 0{sections.length}</span>
+      </span>
+      <span>{sections[active].label}</span>
+      <span className="section-counter-bar">
+        {sections.map((_, i) => (
+          <i key={i} className={i === active ? "is-active" : undefined} />
+        ))}
+      </span>
+    </aside>
+  );
+}
+
+function FloatingLeaf() {
+  return (
+    <motion.svg
+      className="floating-leaf floating-leaf--top-left"
+      viewBox="0 0 64 64"
+      width="64"
+      height="64"
+      aria-hidden="true"
+      animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
+      transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <path
+        d="M32 6c-12 6-20 16-18 30 1 9 7 17 18 22 11-5 17-13 18-22 2-14-6-24-18-30zm0 8c8 5 13 12 12 22-1 7-5 13-12 17-7-4-11-10-12-17-1-10 4-17 12-22z"
+        fill="currentColor"
+      />
+    </motion.svg>
+  );
+}
+
 function AutoLoopRail({
   children,
   className,
-  pixelsPerSec = 30
+  pixelsPerSec = 30,
+  showHint = false
 }: {
   children: React.ReactNode;
   className: string;
   pixelsPerSec?: number;
+  showHint?: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -151,11 +280,13 @@ function AutoLoopRail({
 
     const mobileQuery = window.matchMedia("(max-width: 760px)");
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const dragThreshold = 6;
+    const dragThreshold = 8;
+    const horizontalBias = 1.5;
     const resumeDelayMs = 2600;
     let isVisible = false;
     let manualMode = false;
     let dragActive = false;
+    let decidedVertical = false;
     let dragStartX = 0;
     let dragStartY = 0;
     let baseTrackX = 0;
@@ -227,25 +358,31 @@ function AutoLoopRail({
       dragStartX = e.clientX;
       dragStartY = e.clientY;
       dragActive = false;
+      decidedVertical = false;
       activePointerId = e.pointerId;
+      try {
+        track.setPointerCapture(e.pointerId);
+      } catch {}
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (activePointerId !== e.pointerId) return;
+      if (decidedVertical) return;
+
       const dx = e.clientX - dragStartX;
       const dy = e.clientY - dragStartY;
 
       if (!dragActive) {
         if (Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        if (Math.abs(dy) > Math.abs(dx)) {
-          activePointerId = null;
+        if (Math.abs(dy) > Math.abs(dx) * horizontalBias) {
+          decidedVertical = true;
+          try {
+            track.releasePointerCapture(e.pointerId);
+          } catch {}
           return;
         }
         enterManual();
         dragActive = true;
-        try {
-          track.setPointerCapture(e.pointerId);
-        } catch {}
       }
 
       let newX = baseTrackX + dx;
@@ -260,6 +397,10 @@ function AutoLoopRail({
     const onPointerEnd = (e: PointerEvent) => {
       if (activePointerId !== e.pointerId) return;
       activePointerId = null;
+      decidedVertical = false;
+      try {
+        track.releasePointerCapture(e.pointerId);
+      } catch {}
       if (dragActive) {
         dragActive = false;
         suppressClickUntil = performance.now() + 320;
@@ -344,26 +485,90 @@ function AutoLoopRail({
         {children}
         {loopCopies}
       </div>
+      {showHint ? (
+        <span className="rail-hint" aria-hidden="true">
+          <ArrowLeft size={11} strokeWidth={2} />
+          Desliza
+        </span>
+      ) : null}
     </motion.div>
   );
 }
 
-function BackgroundMedia({ mediaSet }: { mediaSet: MediaSet }) {
+function BackgroundMedia({
+  mediaSet,
+  eager = false,
+  parallax = false
+}: {
+  mediaSet: MediaSet;
+  eager?: boolean;
+  parallax?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(eager);
+
+  useEffect(() => {
+    if (eager || shouldLoadVideo) return;
+    const node = ref.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoadVideo(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "260px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [eager, shouldLoadVideo]);
+
+  useEffect(() => {
+    if (!parallax) return;
+    const node = ref.current;
+    const parent = node?.parentElement;
+    if (!node || !parent) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reducedMotion.matches) return;
+
+    let raf = 0;
+    const update = () => {
+      const rect = parent.getBoundingClientRect();
+      const offset = -rect.top * 0.12;
+      node.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+      node.style.transform = "";
+    };
+  }, [parallax]);
+
   return (
-    <div className="media-layer" aria-hidden="true">
+    <div ref={ref} className="media-layer" aria-hidden="true">
       <picture>
         <source media="(max-width: 760px)" srcSet={mediaSet.mobilePoster} />
         <img src={mediaSet.desktopPoster} alt="" />
       </picture>
 
-      {mediaSet.desktopVideo ? (
+      {shouldLoadVideo && mediaSet.desktopVideo ? (
         <video
           className="section-video video-desktop"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload={eager ? "auto" : "metadata"}
           poster={mediaSet.desktopPoster}
         >
           {mediaSet.desktopVideoWebm ? (
@@ -373,14 +578,14 @@ function BackgroundMedia({ mediaSet }: { mediaSet: MediaSet }) {
         </video>
       ) : null}
 
-      {mediaSet.mobileVideo ? (
+      {shouldLoadVideo && mediaSet.mobileVideo ? (
         <video
           className="section-video video-mobile"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload={eager ? "auto" : "metadata"}
           poster={mediaSet.mobilePoster}
         >
           {mediaSet.mobileVideoWebm ? (
@@ -402,8 +607,23 @@ function CtaButton({
   variant?: "primary" | "ghost";
   href?: string;
 }) {
+  const handleClick = () => {
+    if (variant === "primary" && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(8);
+      } catch {}
+    }
+  };
+
+  const isExternal = href.startsWith("http") || href.startsWith("mailto:");
   return (
-    <a className={`cta-button ${variant}`} href={href} target="_blank" rel="noreferrer">
+    <a
+      className={`cta-button ${variant}`}
+      href={href}
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noreferrer" : undefined}
+      onClick={handleClick}
+    >
       {variant === "primary" ? <MessageCircle size={18} strokeWidth={1.8} /> : null}
       <span>{children}</span>
       {variant === "ghost" ? <ArrowUpRight size={17} strokeWidth={1.7} /> : null}
@@ -471,17 +691,18 @@ export function SolDeTangayLanding() {
     <main className="landing-shell">
       <Header />
 
+      <SectionCounter />
+
       <section className="landing-section hero-section" id="inicio">
-        <BackgroundMedia mediaSet={media.hero} />
+        <BackgroundMedia mediaSet={media.hero} eager parallax />
         <div className="section-tint hero-tint" />
+        <FloatingLeaf />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
-            <h1>Un solo evento al día. El field es tuyo.</h1>
+            <SplitText as="h1" text="Tu evento privado, fuera de la ciudad." />
             <p>
-              Sol De Tangay no comparte el lugar con nadie más mientras tú
-              estés aquí. Pedidas, picnics, cumpleaños, reuniones familiares y
-              eventos privados — siempre con un coordinador dedicado y a menos
-              de 30 minutos del centro de Chimbote.
+              A 30 minutos del centro de Chimbote. Un solo evento al día.
+              Coordinador dedicado.
             </p>
             <div className="button-row">
               <CtaButton>Reservar por WhatsApp</CtaButton>
@@ -502,7 +723,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
-            <h2>Lejos del bullicio. Cerca de tu casa.</h2>
+            <SplitText as="h2" text="Lejos del bullicio. Cerca de tu casa." />
             <p>
               La mayoría de campestres te quitan medio día en traslado y al
               llegar te toca compartirlos con desconocidos. Sol De Tangay está
@@ -520,7 +741,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
-            <h2>Pedidas. Cumpleaños. Cenas en familia.</h2>
+            <SplitText as="h2" text="Pedidas. Cumpleaños. Cenas en familia." />
             <p>
               Cada montaje se diseña contigo antes del día. Lo que ves aquí es
               exactamente lo que vas a recibir: sin sorpresas, sin
@@ -548,7 +769,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
-            <h2>Momentos privados, creado para ti</h2>
+            <SplitText as="h2" text="Momentos privados, creado para ti" />
             <p>
               Pedidas, cumpleaños, aniversarios, reuniones familiares,
               almuerzos privados y eventos de empresa. Cada formato se ajusta
@@ -558,7 +779,7 @@ export function SolDeTangayLanding() {
             <CtaButton>Diseñar mi evento</CtaButton>
           </MotionBlock>
 
-          <AutoLoopRail className="experience-list" pixelsPerSec={30}>
+          <AutoLoopRail className="experience-list" pixelsPerSec={30} showHint>
             {experienceRows.map((row, index) => (
               <a href={whatsappHref} target="_blank" rel="noreferrer" key={row}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
@@ -570,12 +791,12 @@ export function SolDeTangayLanding() {
         </div>
       </section>
 
-      <section className="landing-section packages-section">
+      <section className="landing-section packages-section" id="paquetes">
         <BackgroundMedia mediaSet={media.packages} />
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
-            <h2>Tres formatos. Una sola garantía: el lugar es tuyo.</h2>
+            <SplitText as="h2" text="Tres formatos. Una sola garantía: el lugar es tuyo." />
             <p>
               Desde una pedida íntima hasta una boda que toma el field
               completo. El precio se ajusta a tu lista y al nivel de servicio.
@@ -606,7 +827,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
-            <h2>El field para tus encuentros más privados</h2>
+            <SplitText as="h2" text="El field para tus encuentros más privados" />
             <p>
               Almuerzos familiares que prefieres en privado, parrillas con
               amigos sin público alrededor, retiros y mañanas tranquilas. Sin
@@ -632,7 +853,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
-            <h2>Lejos del ruido. A 30 minutos del centro.</h2>
+            <SplitText as="h2" text="Lejos del ruido. A 30 minutos del centro." />
             <p>
               Acceso asfaltado, parqueo propio dentro del field, sin cruzar
               pueblo ni esquivar tráfico. Llegas, estacionas y desde ese
@@ -652,12 +873,12 @@ export function SolDeTangayLanding() {
         </div>
       </section>
 
-      <section className="landing-section close-section">
+      <section className="landing-section close-section" id="contacto">
         <BackgroundMedia mediaSet={media.close} />
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
-            <h2>Hablemos de tu evento</h2>
+            <SplitText as="h2" text="Hablemos de tu evento" />
             <p>
               Cuéntanos qué momento estás planeando, fecha tentativa y cuántos
               invitados. En 24 horas tienes una cotización con todo claro:

@@ -35,14 +35,11 @@ Thumbs.db
 .qa/
 .playwright-mcp/
 
-# Local screenshots from dev sessions
-header-mobile.png
-header-mobile-v2.png
-footer-mobile.png
-footer-mobile-v2.png
-footer-desktop.png
-footer-desktop-v2.png
-menu-open.png
+# Local screenshots from dev sessions (root only — not /public or /assets)
+/*.png
+/*.jpg
+/*.jpeg
+!/desktop_mockups_contact_sheet.jpg
 
 # User-shared reference screenshots (temporal review material)
 image.png
