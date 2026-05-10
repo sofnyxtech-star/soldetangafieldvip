@@ -1,7 +1,6 @@
 "use client";
 
-import { Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState } from "react";
-import { motion, type Variants } from "motion/react";
+import { Children, cloneElement, isValidElement, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -118,6 +117,67 @@ function makeMedia(slug: string, hasDesktopVideo: boolean): MediaSet {
   };
 }
 
+function useActiveSectionId() {
+  const [activeId, setActiveId] = useState(sections[0].id);
+
+  useEffect(() => {
+    let rafId = 0;
+
+    const updateActiveSection = () => {
+      rafId = 0;
+      const centerY = window.innerHeight * 0.5;
+      let nextId = sections[0].id;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      for (const section of sections) {
+        const el = document.getElementById(section.id);
+        if (!el) continue;
+
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= centerY && rect.bottom >= centerY) {
+          nextId = section.id;
+          break;
+        }
+
+        const distance = Math.min(Math.abs(rect.top - centerY), Math.abs(rect.bottom - centerY));
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nextId = section.id;
+        }
+      }
+
+      setActiveId((current) => (current === nextId ? current : nextId));
+    };
+
+    const scheduleUpdate = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateActiveSection);
+    };
+
+    const activateHashSection = () => {
+      const hashId = window.location.hash.replace("#", "");
+      if (sections.some((section) => section.id === hashId)) {
+        setActiveId((current) => (current === hashId ? current : hashId));
+      }
+    };
+
+    updateActiveSection();
+    activateHashSection();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("hashchange", activateHashSection);
+
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("hashchange", activateHashSection);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  return activeId;
+}
+
 function MotionBlock({
   children,
   className = ""
@@ -125,33 +185,8 @@ function MotionBlock({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
-
-const splitContainerVariants: Variants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.04 }
-  }
-};
-
-const splitWordVariants: Variants = {
-  hidden: { y: "110%" },
-  visible: {
-    y: "0%",
-    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] }
-  }
-};
 
 function SplitText({
   text,
@@ -162,61 +197,15 @@ function SplitText({
   as?: "h1" | "h2" | "h3" | "span";
   className?: string;
 }) {
-  const words = text.split(" ");
-  const content = words.map((word, i) => (
-    <Fragment key={`${word}-${i}`}>
-      <span className="split-text">
-        <motion.span className="split-text-word" variants={splitWordVariants}>
-          {word}
-        </motion.span>
-      </span>
-      {i < words.length - 1 ? " " : null}
-    </Fragment>
-  ));
-
-  const sharedProps = {
-    className,
-    initial: "hidden" as const,
-    whileInView: "visible" as const,
-    viewport: { once: true, amount: 0.2 },
-    variants: splitContainerVariants
-  };
-
-  if (as === "h1") return <motion.h1 {...sharedProps}>{content}</motion.h1>;
-  if (as === "h2") return <motion.h2 {...sharedProps}>{content}</motion.h2>;
-  if (as === "h3") return <motion.h3 {...sharedProps}>{content}</motion.h3>;
-  return <motion.span {...sharedProps}>{content}</motion.span>;
+  const Tag = as;
+  return <Tag className={className}>{text}</Tag>;
 }
 
-function SectionCounter() {
-  const [active, setActive] = useState(0);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let bestIdx = active;
-        let bestRatio = 0;
-        for (const entry of entries) {
-          if (entry.intersectionRatio > bestRatio) {
-            const idx = sections.findIndex((s) => s.id === entry.target.id);
-            if (idx >= 0) {
-              bestIdx = idx;
-              bestRatio = entry.intersectionRatio;
-            }
-          }
-        }
-        if (bestRatio > 0) setActive(bestIdx);
-      },
-      { threshold: [0.25, 0.5, 0.75] }
-    );
-
-    sections.forEach((s) => {
-      const el = document.getElementById(s.id);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [active]);
+function SectionCounter({ activeId }: { activeId: string }) {
+  const active = Math.max(
+    0,
+    sections.findIndex((section) => section.id === activeId)
+  );
 
   return (
     <aside className="section-counter" aria-hidden="true">
@@ -259,7 +248,6 @@ function AutoLoopRail({
     const dragThreshold = 8;
     const horizontalBias = 1.5;
     const resumeDelayMs = 2600;
-    let isVisible = false;
     let manualMode = false;
     let dragActive = false;
     let decidedVertical = false;
@@ -280,12 +268,7 @@ function AutoLoopRail({
 
     const syncState = () => {
       if (manualMode) return;
-      const shouldRun =
-        isVisible &&
-        mobileQuery.matches &&
-        !reducedMotionQuery.matches &&
-        track.scrollWidth > wrapper.clientWidth;
-      track.dataset.active = shouldRun ? "true" : "false";
+      track.dataset.active = "false";
     };
 
     const getCurrentTrackX = () => {
@@ -391,14 +374,6 @@ function AutoLoopRail({
       }
     };
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isVisible = entry.isIntersecting && entry.intersectionRatio >= 0.1;
-        syncState();
-      },
-      { threshold: [0, 0.1, 0.4] }
-    );
-
     const resizeObserver = new ResizeObserver(() => {
       updateDuration();
       syncState();
@@ -406,7 +381,6 @@ function AutoLoopRail({
 
     updateDuration();
     syncState();
-    observer.observe(wrapper);
     resizeObserver.observe(track);
     mobileQuery.addEventListener("change", syncState);
     reducedMotionQuery.addEventListener("change", syncState);
@@ -418,7 +392,6 @@ function AutoLoopRail({
     track.addEventListener("click", onClickCapture, true);
 
     return () => {
-      observer.disconnect();
       resizeObserver.disconnect();
       mobileQuery.removeEventListener("change", syncState);
       reducedMotionQuery.removeEventListener("change", syncState);
@@ -449,13 +422,9 @@ function AutoLoopRail({
   });
 
   return (
-    <motion.div
+    <div
       ref={wrapperRef}
       className={`${className} auto-loop-rail`}
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
     >
       <div ref={trackRef} className="rail-track" data-active="false">
         {children}
@@ -467,66 +436,49 @@ function AutoLoopRail({
           Desliza
         </span>
       ) : null}
-    </motion.div>
+    </div>
   );
 }
 
 function BackgroundMedia({
   mediaSet,
-  eager = false
+  sectionId,
+  eager = false,
+  active = false,
+  load = false
 }: {
   mediaSet: MediaSet;
+  sectionId: string;
   eager?: boolean;
+  active?: boolean;
+  load?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [shouldLoadVideo, setShouldLoadVideo] = useState(eager);
-  const [isInView, setIsInView] = useState(eager);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const hasDesktopVideo = Boolean(mediaSet.desktopVideo);
 
   useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldLoadVideo(true);
-          setIsInView(true);
-        } else {
-          setIsInView(false);
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+    const video = videoRef.current;
+    if (!video) return;
 
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const videos = node.querySelectorAll<HTMLVideoElement>("video");
-    if (videos.length === 0) return;
-    if (isInView) {
-      videos.forEach((v) => {
-        if (v.paused) v.play().catch(() => {});
-      });
+    if (active) {
+      if (video.paused) video.play().catch(() => {});
     } else {
-      videos.forEach((v) => {
-        if (!v.paused) v.pause();
-      });
+      if (!video.paused) video.pause();
     }
-  }, [isInView, shouldLoadVideo]);
+  }, [active, load]);
 
   return (
-    <div ref={ref} className="media-layer" aria-hidden="true">
-      {shouldLoadVideo ? (
+    <div className="media-layer" aria-hidden="true">
+      {load ? (
         <video
+          ref={videoRef}
           className="section-video"
+          data-section={sectionId}
+          data-active={active ? "true" : "false"}
           muted
           loop
           playsInline
-          autoPlay
-          preload={eager ? "auto" : "metadata"}
+          preload={active || eager ? "auto" : "metadata"}
         >
           {mediaSet.mobileVideoWebm ? (
             <source
@@ -621,12 +573,9 @@ function Header() {
       </button>
 
       {open ? (
-        <motion.nav
+        <nav
           className="mobile-nav"
           aria-label="Navegación móvil"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
         >
           {nav.map((item) => (
             <a href={item.href} key={item.href} onClick={() => setOpen(false)}>
@@ -636,21 +585,34 @@ function Header() {
           <a href={whatsappHref} target="_blank" rel="noreferrer">
             Reservar por WhatsApp
           </a>
-        </motion.nav>
+        </nav>
       ) : null}
     </header>
   );
 }
 
 export function SolDeTangayLanding() {
+  const activeSectionId = useActiveSectionId();
+  const activeSectionIndex = Math.max(
+    0,
+    sections.findIndex((section) => section.id === activeSectionId)
+  );
+  const shouldLoadMedia = (index: number) => Math.abs(index - activeSectionIndex) <= 1;
+
   return (
     <main className="landing-shell">
       <Header />
 
-      <SectionCounter />
+      <SectionCounter activeId={activeSectionId} />
 
       <section className="landing-section hero-section" id="inicio">
-        <BackgroundMedia mediaSet={media.hero} eager />
+        <BackgroundMedia
+          sectionId="inicio"
+          mediaSet={media.hero}
+          eager
+          active={activeSectionId === "inicio"}
+          load={shouldLoadMedia(0)}
+        />
         <div className="section-tint hero-tint" />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
@@ -674,7 +636,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section escape-section" id="escape">
-        <BackgroundMedia mediaSet={media.escape} />
+        <BackgroundMedia
+          sectionId="escape"
+          mediaSet={media.escape}
+          active={activeSectionId === "escape"}
+          load={shouldLoadMedia(1)}
+        />
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
@@ -692,7 +659,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section gallery-section" id="galeria">
-        <BackgroundMedia mediaSet={media.gallery} />
+        <BackgroundMedia
+          sectionId="galeria"
+          mediaSet={media.gallery}
+          active={activeSectionId === "galeria"}
+          load={shouldLoadMedia(2)}
+        />
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
@@ -720,7 +692,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section experiences-section" id="experiencias">
-        <BackgroundMedia mediaSet={media.experiences} />
+        <BackgroundMedia
+          sectionId="experiencias"
+          mediaSet={media.experiences}
+          active={activeSectionId === "experiencias"}
+          load={shouldLoadMedia(3)}
+        />
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
@@ -747,7 +724,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section packages-section" id="paquetes">
-        <BackgroundMedia mediaSet={media.packages} />
+        <BackgroundMedia
+          sectionId="paquetes"
+          mediaSet={media.packages}
+          active={activeSectionId === "paquetes"}
+          load={shouldLoadMedia(4)}
+        />
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
@@ -778,7 +760,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section retreats-section" id="retiros">
-        <BackgroundMedia mediaSet={media.retreats} />
+        <BackgroundMedia
+          sectionId="retiros"
+          mediaSet={media.retreats}
+          active={activeSectionId === "retiros"}
+          load={shouldLoadMedia(5)}
+        />
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
@@ -804,7 +791,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section location-section" id="ubicacion">
-        <BackgroundMedia mediaSet={media.location} />
+        <BackgroundMedia
+          sectionId="ubicacion"
+          mediaSet={media.location}
+          active={activeSectionId === "ubicacion"}
+          load={shouldLoadMedia(6)}
+        />
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
@@ -829,7 +821,12 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section close-section" id="contacto">
-        <BackgroundMedia mediaSet={media.close} />
+        <BackgroundMedia
+          sectionId="contacto"
+          mediaSet={media.close}
+          active={activeSectionId === "contacto"}
+          load={shouldLoadMedia(7)}
+        />
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
