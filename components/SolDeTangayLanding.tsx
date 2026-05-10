@@ -208,7 +208,54 @@ function SplitText({
   className?: string;
 }) {
   const Tag = as;
-  return <Tag className={className}>{text}</Tag>;
+  const revealRef = useRef<HTMLHeadingElement | HTMLSpanElement>(null);
+  const [revealed, setRevealed] = useState(false);
+  const words = text.split(" ");
+
+  useEffect(() => {
+    const node = revealRef.current;
+    if (!node || !("IntersectionObserver" in window)) {
+      setRevealed(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setRevealed(true);
+        observer.disconnect();
+      },
+      {
+        rootMargin: "0px 0px -12% 0px",
+        threshold: 0.28
+      }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Tag
+      ref={revealRef as React.Ref<HTMLHeadingElement & HTMLSpanElement>}
+      className={`reveal-text ${revealed ? "is-visible" : ""} ${className ?? ""}`.trim()}
+      aria-label={text}
+    >
+      {words.map((word, index) => (
+        <span key={`${word}-${index}`}>
+          <span
+            className="reveal-word"
+            aria-hidden="true"
+            style={{ "--word-index": Math.min(index, 10) } as React.CSSProperties}
+          >
+            {word}
+          </span>
+          {index < words.length - 1 ? " " : null}
+        </span>
+      ))}
+    </Tag>
+  );
 }
 
 function SectionCounter({ activeId }: { activeId: string }) {
@@ -269,7 +316,6 @@ function BackgroundMedia({
 }) {
   const layerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [shouldRenderVideo, setShouldRenderVideo] = useState(eager);
   const [isVisible, setIsVisible] = useState(eager);
   const hasDesktopVideo = Boolean(mediaSet.desktopVideo);
 
@@ -278,7 +324,6 @@ function BackgroundMedia({
     const section = layer?.closest(".landing-section");
 
     if (!section || !("IntersectionObserver" in window)) {
-      setShouldRenderVideo(true);
       setIsVisible(true);
       return;
     }
@@ -286,11 +331,10 @@ function BackgroundMedia({
     const observer = new IntersectionObserver(
       ([entry]) => {
         const visible = Boolean(entry?.isIntersecting);
-        setShouldRenderVideo(visible);
         setIsVisible(visible);
       },
       {
-        rootMargin: "80px 0px",
+        rootMargin: "180px 0px",
         threshold: 0.12
       }
     );
@@ -309,41 +353,41 @@ function BackgroundMedia({
     } else if (!video.paused) {
       video.pause();
     }
-  }, [isVisible, shouldRenderVideo]);
+  }, [isVisible]);
 
   return (
     <div className="media-layer" ref={layerRef} aria-hidden="true">
-      {shouldRenderVideo ? (
-        <video
-          ref={videoRef}
-          className="section-video"
-          data-section={sectionId}
-          data-active={isVisible ? "true" : "false"}
-          muted
-          loop
-          playsInline
-          preload={eager ? "auto" : "metadata"}
-        >
-          {mediaSet.mobileVideo ? (
-            <source
-              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
-              src={mediaSet.mobileVideo}
-              type="video/mp4"
-            />
-          ) : null}
-          {mediaSet.mobileVideoWebm ? (
-            <source
-              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
-              src={mediaSet.mobileVideoWebm}
-              type="video/webm"
-            />
-          ) : null}
-          {mediaSet.desktopVideo ? <source src={mediaSet.desktopVideo} type="video/mp4" /> : null}
-          {mediaSet.desktopVideoWebm ? (
-            <source src={mediaSet.desktopVideoWebm} type="video/webm" />
-          ) : null}
-        </video>
-      ) : null}
+      <video
+        ref={videoRef}
+        className="section-video"
+        data-section={sectionId}
+        data-active={isVisible ? "true" : "false"}
+        muted
+        loop
+        playsInline
+        preload="auto"
+      >
+        {mediaSet.mobileVideo ? (
+          <source
+            media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+            src={mediaSet.mobileVideo}
+            type="video/mp4"
+          />
+        ) : null}
+        {mediaSet.mobileVideoWebm ? (
+          <source
+            media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+            src={mediaSet.mobileVideoWebm}
+            type="video/webm"
+          />
+        ) : null}
+        {mediaSet.desktopVideo ? (
+          <source media="(min-width: 761px)" src={mediaSet.desktopVideo} type="video/mp4" />
+        ) : null}
+        {mediaSet.desktopVideoWebm ? (
+          <source media="(min-width: 761px)" src={mediaSet.desktopVideoWebm} type="video/webm" />
+        ) : null}
+      </video>
     </div>
   );
 }
@@ -471,7 +515,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
-            <h2>Lejos del bullicio. Cerca de tu casa.</h2>
+            <SplitText as="h2" text="Lejos del bullicio. Cerca de tu casa." />
             <p>
               La mayoría de campestres te quitan medio día en traslado y al
               llegar te toca compartirlos con desconocidos. Sol De Tangay está
@@ -489,7 +533,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
-            <h2>Pedidas. Cumpleaños. Cenas en familia.</h2>
+            <SplitText as="h2" text="Pedidas. Cumpleaños. Cenas en familia." />
             <p>
               Cada montaje se diseña contigo antes del día. Lo que ves aquí es
               exactamente lo que vas a recibir: sin sorpresas, sin
@@ -517,7 +561,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
-            <h2>Momentos privados, creado para ti</h2>
+            <SplitText as="h2" text="Momentos privados, creado para ti" />
             <p>
               Pedidas, cumpleaños, aniversarios, reuniones familiares,
               almuerzos privados y eventos de empresa. Cada formato se ajusta
@@ -544,7 +588,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
-            <h2>Tres formatos. Una sola garantía: el lugar es tuyo.</h2>
+            <SplitText as="h2" text="Tres formatos. Una sola garantía: el lugar es tuyo." />
             <p>
               Desde una pedida íntima hasta una boda que toma el field
               completo. El precio se ajusta a tu lista y al nivel de servicio.
@@ -575,7 +619,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
-            <h2>El field para tus encuentros más privados</h2>
+            <SplitText as="h2" text="El field para tus encuentros más privados" />
             <p>
               Almuerzos familiares que prefieres en privado, parrillas con
               amigos sin público alrededor, retiros y mañanas tranquilas. Sin
@@ -601,7 +645,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
-            <h2>Lejos del ruido. A 30 minutos del centro.</h2>
+            <SplitText as="h2" text="Lejos del ruido. A 30 minutos del centro." />
             <p>
               Acceso asfaltado, parqueo propio dentro del field, sin cruzar
               pueblo ni esquivar tráfico. Llegas, estacionas y desde ese
@@ -626,7 +670,7 @@ export function SolDeTangayLanding() {
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
-            <h2>Hablemos de tu evento</h2>
+            <SplitText as="h2" text="Hablemos de tu evento" />
             <p>
               Cuéntanos qué momento estás planeando, fecha tentativa y cuántos
               invitados. En 24 horas tienes una cotización con todo claro:
