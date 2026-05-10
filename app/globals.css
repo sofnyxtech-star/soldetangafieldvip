@@ -1018,31 +1018,13 @@ p {
 .rail-track {
   display: flex;
   width: max-content;
-  animation-name: loop-marquee;
-  animation-duration: var(--loop-duration, 30s);
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-play-state: paused;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
   cursor: grab;
   user-select: none;
 }
 
 .rail-track:active {
   cursor: grabbing;
-}
-
-.rail-track[data-active="true"] {
-  animation-play-state: running;
-}
-
-@keyframes loop-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
 }
 
 @media (min-width: 761px) {
@@ -1052,7 +1034,6 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rail-track,
   .cta-button.primary {
     animation: none !important;
   }
@@ -1290,9 +1271,28 @@ p {
   .location-proof {
     width: calc(100vw - 16px);
     margin-right: -16px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     -webkit-mask-image: none;
     mask-image: none;
+  }
+
+  .experience-list::-webkit-scrollbar,
+  .format-list::-webkit-scrollbar,
+  .location-proof::-webkit-scrollbar,
+  .tier-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .experience-list .rail-track > *,
+  .format-list .rail-track > *,
+  .location-proof .rail-track > *,
+  .tier-grid .rail-track > * {
+    scroll-snap-align: start;
   }
 
   .experience-list .rail-track {
@@ -1337,7 +1337,12 @@ p {
   .tier-grid {
     width: calc(100vw - 16px);
     margin-right: -16px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     border: 0;
     background: transparent;
     box-shadow: none;

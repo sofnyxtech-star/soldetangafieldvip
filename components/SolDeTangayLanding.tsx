@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, cloneElement, isValidElement, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -35,6 +35,7 @@ type MediaSet = {
 };
 
 const mediaBase = "/sol-de-tangay/images";
+const mobileSmoothBase = "/sol-de-tangay/videos/mobile-smooth";
 
 const media = {
   hero: makeMedia("01-hero-private-escape", true),
@@ -43,8 +44,7 @@ const media = {
   experiences: makeMedia("04-signature-experiences", true),
   packages: makeMedia("05-package-ladder", true),
   retreats: {
-    mobileVideo: `${mediaBase}/mobile/06-retreats-corporate.mp4`,
-    mobileVideoWebm: `${mediaBase}/mobile/06-retreats-corporate.webm`
+    mobileVideo: `${mobileSmoothBase}/06-retreats-corporate.mp4`
   },
   location: makeMedia("07-distance-privacy", true),
   close: makeMedia("08-whatsapp-close", true)
@@ -112,8 +112,7 @@ function makeMedia(slug: string, hasDesktopVideo: boolean): MediaSet {
   return {
     desktopVideo: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.mp4` : undefined,
     desktopVideoWebm: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.webm` : undefined,
-    mobileVideo: `${mediaBase}/mobile/${slug}.mp4`,
-    mobileVideoWebm: `${mediaBase}/mobile/${slug}.webm`
+    mobileVideo: `${mobileSmoothBase}/${slug}.mp4`
   };
 }
 
@@ -227,208 +226,16 @@ function SectionCounter({ activeId }: { activeId: string }) {
 function AutoLoopRail({
   children,
   className,
-  pixelsPerSec = 30,
   showHint = false
 }: {
   children: React.ReactNode;
   className: string;
-  pixelsPerSec?: number;
   showHint?: boolean;
 }) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    const track = trackRef.current;
-    if (!wrapper || !track) return;
-
-    const mobileQuery = window.matchMedia("(max-width: 760px)");
-    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const dragThreshold = 8;
-    const horizontalBias = 1.5;
-    const resumeDelayMs = 2600;
-    let manualMode = false;
-    let dragActive = false;
-    let decidedVertical = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let baseTrackX = 0;
-    let activePointerId: number | null = null;
-    let resumeTimer: number | null = null;
-    let suppressClickUntil = 0;
-
-    const updateDuration = () => {
-      const halfWidth = track.scrollWidth / 2;
-      if (halfWidth > 0) {
-        const durationSec = halfWidth / pixelsPerSec;
-        track.style.setProperty("--loop-duration", `${durationSec}s`);
-      }
-    };
-
-    const syncState = () => {
-      if (manualMode) return;
-      track.dataset.active = "false";
-    };
-
-    const getCurrentTrackX = () => {
-      const matrix = new DOMMatrixReadOnly(getComputedStyle(track).transform);
-      return matrix.m41;
-    };
-
-    const enterManual = () => {
-      if (manualMode) return;
-      baseTrackX = getCurrentTrackX();
-      track.style.animation = "none";
-      track.style.transform = `translate3d(${baseTrackX}px, 0, 0)`;
-      manualMode = true;
-    };
-
-    const scheduleResume = () => {
-      if (resumeTimer !== null) window.clearTimeout(resumeTimer);
-      resumeTimer = window.setTimeout(() => {
-        resumeTimer = null;
-        if (!manualMode) return;
-        const currentX = getCurrentTrackX();
-        const loopWidth = track.scrollWidth / 2;
-        const progress = loopWidth > 0 ? -currentX / loopWidth : 0;
-        const normalized = ((progress % 1) + 1) % 1;
-        const durationStr = getComputedStyle(track)
-          .getPropertyValue("--loop-duration")
-          .trim();
-        const durationSec = parseFloat(durationStr) || 30;
-        const delay = -normalized * durationSec;
-
-        track.style.animation = "";
-        track.style.transform = "";
-        track.style.animationDelay = `${delay}s`;
-        manualMode = false;
-        syncState();
-      }, resumeDelayMs);
-    };
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (!mobileQuery.matches || reducedMotionQuery.matches) return;
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      if (resumeTimer !== null) {
-        window.clearTimeout(resumeTimer);
-        resumeTimer = null;
-      }
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      dragActive = false;
-      decidedVertical = false;
-      activePointerId = e.pointerId;
-      try {
-        track.setPointerCapture(e.pointerId);
-      } catch {}
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (activePointerId !== e.pointerId) return;
-      if (decidedVertical) return;
-
-      const dx = e.clientX - dragStartX;
-      const dy = e.clientY - dragStartY;
-
-      if (!dragActive) {
-        if (Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        if (Math.abs(dy) > Math.abs(dx) * horizontalBias) {
-          decidedVertical = true;
-          try {
-            track.releasePointerCapture(e.pointerId);
-          } catch {}
-          return;
-        }
-        enterManual();
-        dragActive = true;
-      }
-
-      let newX = baseTrackX + dx;
-      const loopWidth = track.scrollWidth / 2;
-      if (loopWidth > 0) {
-        while (newX > 0) newX -= loopWidth;
-        while (newX < -loopWidth) newX += loopWidth;
-      }
-      track.style.transform = `translate3d(${newX}px, 0, 0)`;
-    };
-
-    const onPointerEnd = (e: PointerEvent) => {
-      if (activePointerId !== e.pointerId) return;
-      activePointerId = null;
-      decidedVertical = false;
-      try {
-        track.releasePointerCapture(e.pointerId);
-      } catch {}
-      if (dragActive) {
-        dragActive = false;
-        suppressClickUntil = performance.now() + 320;
-        scheduleResume();
-      }
-    };
-
-    const onClickCapture = (e: MouseEvent) => {
-      if (performance.now() < suppressClickUntil) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateDuration();
-      syncState();
-    });
-
-    updateDuration();
-    syncState();
-    resizeObserver.observe(track);
-    mobileQuery.addEventListener("change", syncState);
-    reducedMotionQuery.addEventListener("change", syncState);
-
-    track.addEventListener("pointerdown", onPointerDown);
-    track.addEventListener("pointermove", onPointerMove);
-    track.addEventListener("pointerup", onPointerEnd);
-    track.addEventListener("pointercancel", onPointerEnd);
-    track.addEventListener("click", onClickCapture, true);
-
-    return () => {
-      resizeObserver.disconnect();
-      mobileQuery.removeEventListener("change", syncState);
-      reducedMotionQuery.removeEventListener("change", syncState);
-      track.removeEventListener("pointerdown", onPointerDown);
-      track.removeEventListener("pointermove", onPointerMove);
-      track.removeEventListener("pointerup", onPointerEnd);
-      track.removeEventListener("pointercancel", onPointerEnd);
-      track.removeEventListener("click", onClickCapture, true);
-      if (resumeTimer !== null) window.clearTimeout(resumeTimer);
-    };
-  }, [pixelsPerSec]);
-
-  const loopCopies = Children.map(children, (child, index) => {
-    if (!isValidElement(child)) return child;
-
-    const element = child as React.ReactElement<{
-      className?: string;
-      tabIndex?: number;
-      "aria-hidden"?: boolean;
-    }>;
-
-    return cloneElement(element, {
-      key: `loop-copy-${index}`,
-      className: [element.props.className, "loop-clone"].filter(Boolean).join(" "),
-      "aria-hidden": true,
-      tabIndex: -1
-    });
-  });
-
   return (
-    <div
-      ref={wrapperRef}
-      className={`${className} auto-loop-rail`}
-    >
-      <div ref={trackRef} className="rail-track" data-active="false">
+    <div className={`${className} auto-loop-rail`}>
+      <div className="rail-track">
         {children}
-        {loopCopies}
       </div>
       {showHint ? (
         <span className="rail-hint" aria-hidden="true">
@@ -480,18 +287,18 @@ function BackgroundMedia({
           playsInline
           preload={active || eager ? "auto" : "metadata"}
         >
-          {mediaSet.mobileVideoWebm ? (
-            <source
-              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
-              src={mediaSet.mobileVideoWebm}
-              type="video/webm"
-            />
-          ) : null}
           {mediaSet.mobileVideo ? (
             <source
               media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
               src={mediaSet.mobileVideo}
               type="video/mp4"
+            />
+          ) : null}
+          {mediaSet.mobileVideoWebm ? (
+            <source
+              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
+              src={mediaSet.mobileVideoWebm}
+              type="video/webm"
             />
           ) : null}
           {mediaSet.desktopVideoWebm ? (
@@ -597,7 +404,7 @@ export function SolDeTangayLanding() {
     0,
     sections.findIndex((section) => section.id === activeSectionId)
   );
-  const shouldLoadMedia = (index: number) => Math.abs(index - activeSectionIndex) <= 1;
+  const shouldLoadMedia = (index: number) => index === activeSectionIndex;
 
   return (
     <main className="landing-shell">
@@ -711,7 +518,7 @@ export function SolDeTangayLanding() {
             <CtaButton>Diseñar mi evento</CtaButton>
           </MotionBlock>
 
-          <AutoLoopRail className="experience-list" pixelsPerSec={30} showHint>
+          <AutoLoopRail className="experience-list" showHint>
             {experienceRows.map((row, index) => (
               <a href={whatsappHref} target="_blank" rel="noreferrer" key={row}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
@@ -742,7 +549,7 @@ export function SolDeTangayLanding() {
             </p>
           </MotionBlock>
 
-          <AutoLoopRail className="tier-grid" pixelsPerSec={28}>
+          <AutoLoopRail className="tier-grid">
             {packageTiers.map((tier, index) => (
               <article className={`tier-card tier-${index}`} key={tier.name}>
                 <div className="tier-mark">{index + 1}</div>
@@ -779,7 +586,7 @@ export function SolDeTangayLanding() {
             <CtaButton>Reservar mi fecha</CtaButton>
           </MotionBlock>
 
-          <AutoLoopRail className="format-list" pixelsPerSec={26}>
+          <AutoLoopRail className="format-list">
             {retreatFormats.map(({ label, icon: Icon }) => (
               <a href={whatsappHref} target="_blank" rel="noreferrer" key={label}>
                 <Icon size={21} strokeWidth={1.45} />
@@ -807,7 +614,7 @@ export function SolDeTangayLanding() {
               momento estás en otra dimensión, sin haber perdido media jornada
               en la ruta.
             </p>
-            <AutoLoopRail className="location-proof" pixelsPerSec={24}>
+            <AutoLoopRail className="location-proof">
               {locationProof.map((item) => (
                 <span key={item}>
                   <Check size={14} />
