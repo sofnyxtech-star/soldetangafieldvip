@@ -545,13 +545,13 @@ function BackgroundMedia({
         </video>
       ) : null}
 
-      {shouldLoadVideo && mediaSet.mobileVideo ? (
+      {eager && shouldLoadVideo && mediaSet.mobileVideo ? (
         <video
           className="section-video video-mobile"
           muted
           loop
           playsInline
-          preload={eager ? "auto" : "metadata"}
+          preload="auto"
           poster={mediaSet.mobilePoster}
         >
           {mediaSet.mobileVideoWebm ? (
