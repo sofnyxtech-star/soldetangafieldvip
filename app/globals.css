@@ -137,7 +137,6 @@ a {
 }
 
 .media-layer,
-.section-video,
 .section-tint {
   position: absolute;
   inset: 0;
@@ -146,17 +145,6 @@ a {
 .media-layer {
   z-index: -3;
   background: var(--olive-950);
-}
-
-.section-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.section-video {
-  z-index: 1;
-  opacity: 0.94;
 }
 
 .section-tint {
@@ -1120,15 +1108,6 @@ p {
     min-height: 100svh;
   }
 
-  .hero-section .section-video {
-    object-position: center 35%;
-  }
-
-  .packages-section .section-video,
-  .experiences-section .section-video {
-    object-position: center top;
-  }
-
   .hero-tint,
   .split-tint,
   .gallery-tint,
@@ -1508,7 +1487,4 @@ p {
     scroll-behavior: auto !important;
   }
 
-  .section-video {
-    display: none !important;
-  }
 }

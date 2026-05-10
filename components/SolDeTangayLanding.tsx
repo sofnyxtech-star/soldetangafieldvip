@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -26,29 +26,6 @@ const sections = [
   { id: "ubicacion", label: "Ubicación" },
   { id: "contacto", label: "Contacto" }
 ];
-
-type MediaSet = {
-  desktopVideo?: string;
-  desktopVideoWebm?: string;
-  mobileVideo?: string;
-  mobileVideoWebm?: string;
-};
-
-const mediaBase = "/sol-de-tangay/images";
-const mobileSmoothBase = "/sol-de-tangay/videos/mobile-smooth";
-
-const media = {
-  hero: makeMedia("01-hero-private-escape", true),
-  escape: makeMedia("02-city-escape-path", true),
-  gallery: makeMedia("03-experience-gallery", true),
-  experiences: makeMedia("04-signature-experiences", true),
-  packages: makeMedia("05-package-ladder", true),
-  retreats: {
-    mobileVideo: `${mobileSmoothBase}/06-retreats-corporate.mp4`
-  },
-  location: makeMedia("07-distance-privacy", true),
-  close: makeMedia("08-whatsapp-close", true)
-} satisfies Record<string, MediaSet>;
 
 const nav = [
   { label: "Experiencias", href: "#experiencias" },
@@ -107,14 +84,6 @@ const whatsappDisplay = "+51 973 068 950";
 const whatsappHref = whatsappNumber
   ? `https://wa.me/${whatsappNumber}?text=${whatsappText}`
   : `https://wa.me/?text=${whatsappText}`;
-
-function makeMedia(slug: string, hasDesktopVideo: boolean): MediaSet {
-  return {
-    desktopVideo: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.mp4` : undefined,
-    desktopVideoWebm: hasDesktopVideo ? `${mediaBase}/desktop/${slug}.webm` : undefined,
-    mobileVideo: `${mobileSmoothBase}/${slug}.mp4`
-  };
-}
 
 function useActiveSectionId() {
   const [activeId, setActiveId] = useState(sections[0].id);
@@ -247,70 +216,8 @@ function AutoLoopRail({
   );
 }
 
-function BackgroundMedia({
-  mediaSet,
-  sectionId,
-  eager = false,
-  active = false,
-  load = false
-}: {
-  mediaSet: MediaSet;
-  sectionId: string;
-  eager?: boolean;
-  active?: boolean;
-  load?: boolean;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const hasDesktopVideo = Boolean(mediaSet.desktopVideo);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (active) {
-      if (video.paused) video.play().catch(() => {});
-    } else {
-      if (!video.paused) video.pause();
-    }
-  }, [active, load]);
-
-  return (
-    <div className="media-layer" aria-hidden="true">
-      {load ? (
-        <video
-          ref={videoRef}
-          className="section-video"
-          data-section={sectionId}
-          data-active={active ? "true" : "false"}
-          muted
-          loop
-          playsInline
-          preload={active || eager ? "auto" : "metadata"}
-        >
-          {mediaSet.mobileVideo ? (
-            <source
-              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
-              src={mediaSet.mobileVideo}
-              type="video/mp4"
-            />
-          ) : null}
-          {mediaSet.mobileVideoWebm ? (
-            <source
-              media={hasDesktopVideo ? "(max-width: 760px)" : undefined}
-              src={mediaSet.mobileVideoWebm}
-              type="video/webm"
-            />
-          ) : null}
-          {mediaSet.desktopVideoWebm ? (
-            <source src={mediaSet.desktopVideoWebm} type="video/webm" />
-          ) : null}
-          {mediaSet.desktopVideo ? (
-            <source src={mediaSet.desktopVideo} type="video/mp4" />
-          ) : null}
-        </video>
-      ) : null}
-    </div>
-  );
+function BackgroundMedia() {
+  return <div className="media-layer" data-media-disabled="true" aria-hidden="true" />;
 }
 
 function CtaButton({
@@ -400,11 +307,6 @@ function Header() {
 
 export function SolDeTangayLanding() {
   const activeSectionId = useActiveSectionId();
-  const activeSectionIndex = Math.max(
-    0,
-    sections.findIndex((section) => section.id === activeSectionId)
-  );
-  const shouldLoadMedia = (index: number) => index === activeSectionIndex;
 
   return (
     <main className="landing-shell">
@@ -413,13 +315,7 @@ export function SolDeTangayLanding() {
       <SectionCounter activeId={activeSectionId} />
 
       <section className="landing-section hero-section" id="inicio">
-        <BackgroundMedia
-          sectionId="inicio"
-          mediaSet={media.hero}
-          eager
-          active={activeSectionId === "inicio"}
-          load={shouldLoadMedia(0)}
-        />
+        <BackgroundMedia />
         <div className="section-tint hero-tint" />
         <div className="section-inner hero-inner">
           <MotionBlock className="hero-copy">
@@ -443,12 +339,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section escape-section" id="escape">
-        <BackgroundMedia
-          sectionId="escape"
-          mediaSet={media.escape}
-          active={activeSectionId === "escape"}
-          load={shouldLoadMedia(1)}
-        />
+        <BackgroundMedia />
         <div className="section-tint split-tint" />
         <div className="section-inner aligned-left">
           <MotionBlock className="copy-panel transparent-panel">
@@ -466,12 +357,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section gallery-section" id="galeria">
-        <BackgroundMedia
-          sectionId="galeria"
-          mediaSet={media.gallery}
-          active={activeSectionId === "galeria"}
-          load={shouldLoadMedia(2)}
-        />
+        <BackgroundMedia />
         <div className="section-tint gallery-tint" />
         <div className="section-inner gallery-inner">
           <MotionBlock className="gallery-copy">
@@ -499,12 +385,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section experiences-section" id="experiencias">
-        <BackgroundMedia
-          sectionId="experiencias"
-          mediaSet={media.experiences}
-          active={activeSectionId === "experiencias"}
-          load={shouldLoadMedia(3)}
-        />
+        <BackgroundMedia />
         <div className="section-tint light-tint" />
         <div className="section-inner experiences-inner">
           <MotionBlock className="cream-panel experience-card">
@@ -531,12 +412,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section packages-section" id="paquetes">
-        <BackgroundMedia
-          sectionId="paquetes"
-          mediaSet={media.packages}
-          active={activeSectionId === "paquetes"}
-          load={shouldLoadMedia(4)}
-        />
+        <BackgroundMedia />
         <div className="section-tint package-tint" />
         <div className="section-inner packages-inner">
           <MotionBlock className="section-heading centered">
@@ -567,12 +443,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section retreats-section" id="retiros">
-        <BackgroundMedia
-          sectionId="retiros"
-          mediaSet={media.retreats}
-          active={activeSectionId === "retiros"}
-          load={shouldLoadMedia(5)}
-        />
+        <BackgroundMedia />
         <div className="section-tint retreat-tint" />
         <div className="section-inner retreats-inner">
           <MotionBlock className="retreat-copy">
@@ -598,12 +469,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section location-section" id="ubicacion">
-        <BackgroundMedia
-          sectionId="ubicacion"
-          mediaSet={media.location}
-          active={activeSectionId === "ubicacion"}
-          load={shouldLoadMedia(6)}
-        />
+        <BackgroundMedia />
         <div className="section-tint location-tint" />
         <div className="section-inner location-inner">
           <MotionBlock className="location-copy">
@@ -628,12 +494,7 @@ export function SolDeTangayLanding() {
       </section>
 
       <section className="landing-section close-section" id="contacto">
-        <BackgroundMedia
-          sectionId="contacto"
-          mediaSet={media.close}
-          active={activeSectionId === "contacto"}
-          load={shouldLoadMedia(7)}
-        />
+        <BackgroundMedia />
         <div className="section-tint close-tint" />
         <div className="section-inner close-inner">
           <MotionBlock className="close-copy">
